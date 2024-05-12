@@ -1,0 +1,210 @@
+#include <Servo.h> //Kodebibliotek til å styre servo-motoren 
+#include <Stepper.h> //Kodebibliotek til å styre stepper-motoren 
+#include <Wire.h>
+// Kodebiblioteker til LCD-skjerm 
+#include <hd44780.h>                        // main hd44780 header
+#include <hd44780ioClass/hd44780_I2Cexp.h>  // i2c expander i/o class header
+hd44780_I2Cexp lcd;                         // declare lcd object: auto locate & auto config expander chip
+
+Servo servo1;
+Servo servo2;
+const int potPin1 = A0;
+const int potPin2 = A1;
+const int M1 = 5;
+const int E1 = 6;
+const int M2 = 4;
+const int E2 = 3;
+const int servoPin1 = A2;
+const int servoPin2 = A3;
+const int systemSpinner = 13;
+unsigned long previousMillis = 0;  // Variable to store the previous time
+const unsigned long interval = 1000;  // Interval in milliseconds (1 second)
+
+
+// Number of steps per output rotation
+const int stepsPerRevolution = 50;
+
+// Create Instance of Stepper library
+Stepper myStepper(stepsPerRevolution, 8, 9, 10, 11);
+
+
+// LCD geometry
+const int LCD_COLS = 20;
+const int LCD_ROWS = 4;
+unsigned long startTime = 0;
+float elapsedTime1 = 0;
+float elapsedTime2 = 0;
+bool countTime = true;
+
+
+void setup() {
+
+  Serial.begin(9600);
+  pinMode(M1, OUTPUT);
+  pinMode(M2, OUTPUT);
+  pinMode(E1, OUTPUT);
+  pinMode(E2, OUTPUT);
+  servo1.attach(servoPin1);
+  servo2.attach(servoPin2);
+  myStepper.setSpeed(180);
+
+  //LCD-setup
+  int status;
+  status = lcd.begin(LCD_COLS, LCD_ROWS);
+  if (status)  // non zero status means it was unsuccesful
+  {
+    hd44780::fatalError(status);  // does not return
+    Serial.println("No LCD");
+  }
+
+  lcd.begin(LCD_COLS, LCD_ROWS);
+  lcd.setCursor(0, 0);
+  lcd.print("Vri knappene  ");
+  lcd.setCursor(0, 2);
+  lcd.print("for a starte!");
+
+}
+
+void loop() {
+
+  //Sjekker om verdien til potentiometerne har endret seg - begynner "spillet" om potentiometerne er flyttet på
+  bool screenCleared = false;
+  lcd.begin(LCD_COLS, LCD_ROWS);
+  lcd.setCursor(0, 0);
+  lcd.print("Vri knappene  ");
+  lcd.setCursor(0, 2);
+  lcd.print("for a starte!");
+
+  analogWrite(E1, 0);
+  analogWrite(E2, 0);
+
+
+  int start_potValue1 = analogRead(potPin1);
+  int start_potValue2 = analogRead(potPin2);
+  delay(100);
+  int second_potValue1 = analogRead(potPin1);
+  int second_potValue2 = analogRead(potPin2);
+  int pot1_difference = start_potValue1 - second_potValue1;
+  int pot2_difference = start_potValue2 - second_potValue2;
+  
+
+  if (pot1_difference > 30 || pot1_difference < -30 || pot2_difference > 30 || pot2_difference < -30) {
+
+    bool gameOn = true;
+    countTime = true;
+    startTime = millis();
+    while (gameOn) {
+
+      // steppermotor starter
+      myStepper.step(stepsPerRevolution);
+
+      int potValue1 = analogRead(potPin1);
+      int potValueEarth = analogRead(potPin2);
+      int angle1 = map(potValue1, 0, 1023, 60, 0);
+      int angleEarth = map(potValueEarth, 0, 1023, 60, 0);
+      int actualAngle = map(angle1, 0, 90, 90, 0);
+      int difference = angleEarth - actualAngle;
+      int ratio = difference / 3;
+      float mappedDifference = map(difference, -90, 30, 200, 2000);
+      mappedDifference /= 1000.0;
+
+      int motorSpeed1 = 70;  //ikke under 21
+      int earthSpeed = 35;   //
+
+
+      //LCD kode
+      if (countTime) {
+        int currentTime = millis() - startTime;
+        elapsedTime1 = (currentTime) / 1000;  // Antall døgn på jorda
+        elapsedTime2 += (2.1 - mappedDifference);     // Antall døgn på Planetus
+        unsigned long currentMillis = millis();
+
+if (currentMillis - previousMillis >= interval) {
+    // Update previousMillis to the current time
+    previousMillis = currentMillis;
+
+
+        lcd.setCursor(0, 1);
+        lcd.print(elapsedTime1);
+        lcd.print(" dager");
+        lcd.setCursor(0, 3);
+        lcd.print(elapsedTime2);
+        lcd.print(" dager");
+
+        lcd.setCursor(0, 0);
+        lcd.print("Tid pa jorda:  ");
+        lcd.setCursor(0, 2);
+        lcd.print("Tid pa Planetus");
+}
+
+        if (elapsedTime1 >= 30 && !screenCleared) {
+          unsigned long blinkStartTime = millis();  // To keep track of when blinking started
+          bool displayText = true;                  // Variable to toggle between displaying text and clearing the screen
+          analogWrite(E1, 0);    // Turn off motor 1
+          analogWrite(E2, 0);    // Turn off motor 2
+
+          while (millis() - blinkStartTime < 6000) {  // Continue blinking for 4 seconds
+            if (displayText) {
+              lcd.clear();
+              lcd.setCursor(0, 0);
+              lcd.print("Etter ");
+              lcd.print(elapsedTime1);
+              lcd.print(" dager pa");
+              lcd.setCursor(0, 1);
+              lcd.print("Jorda har det");
+              lcd.setCursor(0, 2);
+              lcd.print("gatt ");
+              lcd.print(elapsedTime2);
+              lcd.print(" dager pa");
+              lcd.setCursor(0, 3);
+              lcd.print("Planetus");
+              displayText = false;  // Toggle variable to clear the screen next iteration
+            } else {
+              lcd.clear();         // Clear the screen
+              displayText = true;  // Toggle variable to display text next iteration
+            }
+            delay(700);  // 500 milliseconds delay for blinking effect
+          }
+
+          //Reset alt!
+          screenCleared = true;  // Set this to true to avoid clearing the screen again
+          countTime = false;     // Stop counting time
+          gameOn = false;        // End the game
+          elapsedTime1 = 0; 
+          elapsedTime2 = 0; 
+
+        }
+      }
+
+
+      servo1.write(angle1);
+      servo2.write(angleEarth);
+
+      digitalWrite(M1, LOW);
+      digitalWrite(M2, LOW);
+
+      analogWrite(E1, motorSpeed1);
+      analogWrite(E2, earthSpeed);
+
+      //Styring av hastigheten til Planetus i forhold til plassering til det sorte hullet og jorda
+      if (difference > 1) {
+        motorSpeed1 -= ratio;
+        //motorSpeed1 += difference;
+        analogWrite(E1, motorSpeed1);
+        //analogWrite(E2, earthSpeed);
+      }
+
+      else if (difference < -1) {
+        motorSpeed1 -= ratio;
+        //motorSpeed1 += difference;
+        analogWrite(E1, motorSpeed1);
+        //analogWrite(E2, earthSpeed);
+      }
+
+      //Begge spinner sakte sammen
+      else {
+        analogWrite(E1, 49);
+        //analogWrite(E2, earthSpeed);
+    }
+  }
+}
