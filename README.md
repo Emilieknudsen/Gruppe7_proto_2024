@@ -1,5 +1,5 @@
 # Gruppe7_proto_2024
-Kode for Tidsforvrengeren 
+Kode for Tidsforvrengeren - laget av Elena Marie Kirchman, Emilie Sandberg Knudsen, Thomas Jonassen og Astor Gutzeit Knudsen
 
 Vi har benyttett oss av følgende kodebiblioteker i koden: 
 - <Servo.h> - Kodebibliotek til å styre servo-motoren
