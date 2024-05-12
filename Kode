@@ -1,6 +1,7 @@
 #include <Servo.h> //Kodebibliotek til å styre servo-motoren 
 #include <Stepper.h> //Kodebibliotek til å styre stepper-motoren 
 #include <Wire.h>
+
 // Kodebiblioteker til LCD-skjerm 
 #include <hd44780.h>                        // main hd44780 header
 #include <hd44780ioClass/hd44780_I2Cexp.h>  // i2c expander i/o class header
@@ -21,7 +22,7 @@ unsigned long previousMillis = 0;  // Variable to store the previous time
 const unsigned long interval = 1000;  // Interval in milliseconds (1 second)
 
 
-// Number of steps per output rotation
+// Stepper rotasjon 
 const int stepsPerRevolution = 50;
 
 // Create Instance of Stepper library
@@ -67,7 +68,6 @@ void setup() {
 
 void loop() {
 
-  //Sjekker om verdien til potentiometerne har endret seg - begynner "spillet" om potentiometerne er flyttet på
   bool screenCleared = false;
   lcd.begin(LCD_COLS, LCD_ROWS);
   lcd.setCursor(0, 0);
@@ -78,7 +78,7 @@ void loop() {
   analogWrite(E1, 0);
   analogWrite(E2, 0);
 
-
+  //Sjekker om verdien til potentiometerne har endret seg - begynner "spillet" om potentiometerne er flyttet på
   int start_potValue1 = analogRead(potPin1);
   int start_potValue2 = analogRead(potPin2);
   delay(100);
@@ -88,6 +88,7 @@ void loop() {
   int pot2_difference = start_potValue2 - second_potValue2;
   
 
+  //"Spillet" starter når potentiometeret flyttes 
   if (pot1_difference > 30 || pot1_difference < -30 || pot2_difference > 30 || pot2_difference < -30) {
 
     bool gameOn = true;
@@ -97,7 +98,6 @@ void loop() {
 
       // steppermotor starter
       myStepper.step(stepsPerRevolution);
-
       int potValue1 = analogRead(potPin1);
       int potValueEarth = analogRead(potPin2);
       int angle1 = map(potValue1, 0, 1023, 60, 0);
@@ -108,7 +108,7 @@ void loop() {
       float mappedDifference = map(difference, -90, 30, 200, 2000);
       mappedDifference /= 1000.0;
 
-      int motorSpeed1 = 70;  //ikke under 21
+      int motorSpeed1 = 70;  //
       int earthSpeed = 35;   //
 
 
@@ -137,6 +137,7 @@ if (currentMillis - previousMillis >= interval) {
         lcd.print("Tid pa Planetus");
 }
 
+        //etter 30 sekunder vises resultatet på skjermen før en ny runde starter 
         if (elapsedTime1 >= 30 && !screenCleared) {
           unsigned long blinkStartTime = millis();  // To keep track of when blinking started
           bool displayText = true;                  // Variable to toggle between displaying text and clearing the screen
